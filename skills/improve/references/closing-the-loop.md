@@ -18,6 +18,8 @@ The founding rule survives unchanged: **the advisor never edits source code.** I
 
 Spawn **one** `general-purpose` subagent with `isolation: "worktree"`. Executor model: default `sonnet`; use what the user named if they named one (`execute 003 haiku`).
 
+Record the worktree's starting commit (`git -C <worktree> rev-parse HEAD`) as the **execution base** before the executor starts. The executor commits its work, so the review below compares the base with the final HEAD — a bare `git diff` on a clean, committed worktree is empty and hides out-of-scope commits.
+
 The subagent prompt must contain:
 
 1. **The full plan file text, inlined.** The worktree contains only committed files — if `plans/` is uncommitted, the executor can't read it. Never assume; always inline.
@@ -52,8 +54,8 @@ Note on fresh worktrees: they share git history but not `node_modules` or build 
 Review like a tech lead reviewing a PR against the spec — never fix anything yourself:
 
 1. **Re-run every done criterion** in the worktree. Don't trust the executor's report — verify.
-2. **Scope compliance**: `git -C <worktree> diff --stat` against the plan's in-scope list. Any file outside scope fails review, full stop.
-3. **Read the full diff.** Judge it against "Why this matters" (does it solve the actual problem?) and the repo conventions named in the plan (does it look like the rest of the codebase?).
+2. **Scope compliance**: `git -C <worktree> diff --name-only <execution-base> HEAD` against the plan's in-scope list. Any file outside scope fails review, full stop. Then check staged, unstaged and untracked leftovers separately with `git -C <worktree> status --porcelain=v1 --untracked-files=all` — leftover files fail review the same way.
+3. **Read the full diff** (`git -C <worktree> diff <execution-base> HEAD`). Judge it against "Why this matters" (does it solve the actual problem?) and the repo conventions named in the plan (does it look like the rest of the codebase?).
 4. **Audit the new tests.** Executors game criteria — a test that asserts nothing meaningful passes `pnpm test` and proves nothing. Read what the tests assert.
 
 ### Verdict
